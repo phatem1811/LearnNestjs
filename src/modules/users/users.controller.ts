@@ -1,7 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Public } from '@/decorator/customize';
 
 @Controller('users')
 export class UsersController {
@@ -9,15 +19,15 @@ export class UsersController {
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    console.log("check data ", createUserDto);
     return this.usersService.create(createUserDto);
   }
 
   @Get()
+  @Public()
   async findAll(
     @Query() query: string,
-    @Query("current") current: string,
-    @Query("pageSize") pageSize: string,
+    @Query('current') current: string,
+    @Query('pageSize') pageSize: string,
   ) {
     return this.usersService.findAll(query, +current, +pageSize);
   }

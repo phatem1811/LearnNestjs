@@ -1,4 +1,8 @@
-import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './schemas/user.schema';
@@ -6,6 +10,9 @@ import mongoose, { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { hassPasswordHelper } from '@/helpers/ulti';
 import aqp from 'api-query-params';
+import { CreateAuthDto } from '@/auth/dto/create-auth.dto';
+import { v4 as uuidv4 } from 'uuid';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class UsersService {
@@ -34,8 +41,11 @@ export class UsersService {
     });
     return user;
   }
+  async findByEmail(email: string) {
+    return await this.userModel.findOne({ email });
+  }
 
-    async findAll(query: string, current: number, pageSize: number) {
+  async findAll(query: string, current: number, pageSize: number) {
     const { filter, sort } = aqp(query);
     if (filter.current) delete filter.current;
     if (filter.pageSize) delete filter.pageSize;
@@ -46,24 +56,24 @@ export class UsersService {
     const totalItems = (await this.userModel.find(filter)).length;
     const totalPages = Math.ceil(totalItems / pageSize);
 
-    const skip = (current - 1) * (pageSize);
+    const skip = (current - 1) * pageSize;
 
     const results = await this.userModel
       .find(filter)
       .limit(pageSize)
       .skip(skip)
-      .select("-password")
+      .select('-password')
       .sort(sort as any);
 
     return {
       meta: {
         current: current, //trang hiện tại
         pageSize: pageSize, //số lượng bản ghi đã lấy
-        pages: totalPages,  //tổng số trang với điều kiện query
-        total: totalItems // tổng số phần tử (số bản ghi)
+        pages: totalPages, //tổng số trang với điều kiện query
+        total: totalItems, // tổng số phần tử (số bản ghi)
       },
-      results //kết quả query
-    }
+      results, //kết quả query
+    };
   }
 
   findOne(id: number) {
@@ -72,18 +82,40 @@ export class UsersService {
 
   async update(updateUserDto: UpdateUserDto) {
     return await this.userModel.updateOne(
-      { _id: updateUserDto._id }, { ...updateUserDto });
+      { _id: updateUserDto._id },
+      { ...updateUserDto },
+    );
   }
 
   async remove(_id: string) {
     //check id
     if (mongoose.isValidObjectId(_id)) {
       //delete
-      return this.userModel.deleteOne({ _id })
+      return this.userModel.deleteOne({ _id });
     } else {
-      throw new BadRequestException("Id không đúng định dạng mongodb")
+      throw new BadRequestException('Id không đúng định dạng mongodb');
     }
-
   }
 
+  async handleRegister(registerDto: CreateAuthDto) {
+    const { name, email, password } = registerDto;
+
+    //check email
+    const isExist = await this.isEmailExist(email);
+    if (isExist === true) {
+      throw new BadRequestException(
+        `Email đã tồn tại: ${email}. Vui lòng sử dụng email khác.`,
+      );
+    }
+        const hashPassword = await hassPasswordHelper(password);
+    const codeId = uuidv4();
+    const user = await this.userModel.create({
+      name, email, password: hashPassword,
+      isActive: false,
+      codeId: codeId,
+      codeExpired: dayjs().add(5, 'minutes')
+      // codeExpired: dayjs().add(30, 'seconds')
+    })
+    return user
+  }
 }
