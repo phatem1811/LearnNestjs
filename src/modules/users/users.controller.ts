@@ -12,6 +12,8 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Public } from '@/decorator/customize';
+import { Roles } from '@/auth/role/decorator';
+import { Role } from '@/auth/role/enum';
 
 @Controller('users')
 export class UsersController {
@@ -23,7 +25,7 @@ export class UsersController {
   }
 
   @Get()
-  @Public()
+  @Roles(Role.User)
   async findAll(
     @Query() query: string,
     @Query('current') current: string,
